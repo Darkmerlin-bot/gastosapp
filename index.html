@@ -1,461 +1,802 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <title>GastosApp</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body, #root { height: 100%; width: 100%; overflow-x: hidden; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; }
-        input[type="date"], input[type="month"] { color-scheme: dark; }
-        ::-webkit-scrollbar { width: 0; height: 0; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#13102a">
+<title>Control de Gastos</title>
+<link rel="manifest" href="data:application/json,{}">
+<style>
+  :root {
+    --bg-deep: #0d0919;
+    --bg-base: #13102a;
+    --bg-card: rgba(255,255,255,0.03);
+    --bg-card-border: rgba(167,139,250,0.08);
+    --violet: #8b5cf6;
+    --violet-dark: #6d28d9;
+    --violet-light: #c4b5fd;
+    --violet-glow: rgba(139,92,246,0.4);
+    --text-primary: #e2e0ff;
+    --text-secondary: #8b82a8;
+    --text-muted: #6b6490;
+    --text-dim: #5b5280;
+    --text-faint: #3f3561;
+    --green: #6ee7b7;
+    --green-dark: #059669;
+    --green-bg: rgba(16,185,129,0.08);
+    --orange: #fdba74;
+    --orange-dark: #ea580c;
+    --orange-bg: rgba(249,115,22,0.08);
+    --red: #fca5a5;
+    --red-solid: #ef4444;
+    --safe-bottom: env(safe-area-inset-bottom, 12px);
+  }
+
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 40%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { display: none; }
+  body { scrollbar-width: none; }
+
+  input, button, select { font-family: inherit; }
+
+  input::placeholder { color: var(--text-dim); }
+  input:focus { border-color: rgba(139,92,246,0.4) !important; outline: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fadeScale { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-card-border);
+    border-radius: 16px;
+    padding: 16px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .month-nav {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 4px 0; user-select: none;
+  }
+  .month-nav button {
+    background: none; border: none; font-size: 22px; padding: 4px 10px;
+    cursor: pointer; transition: color 0.2s; color: var(--violet-light);
+  }
+  .month-nav button:disabled { color: var(--text-faint); cursor: default; }
+  .month-nav .label {
+    font-size: 15px; font-weight: 600; color: var(--text-primary);
+    min-width: 140px; text-align: center; letter-spacing: 0.02em;
+  }
+
+  /* Bottom Nav */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, var(--bg-deep) 60%, rgba(13,9,25,0.95));
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    display: flex; justify-content: space-around;
+    padding: 6px 0; padding-bottom: var(--safe-bottom);
+    border-top: 1px solid rgba(167,139,250,0.1);
+    z-index: 100; max-width: 480px; margin: 0 auto;
+  }
+  .nav-btn {
+    background: none; border: none; display: flex; flex-direction: column;
+    align-items: center; gap: 2px; padding: 6px 16px; cursor: pointer;
+  }
+  .nav-btn .icon { font-size: 20px; transition: all 0.25s; }
+  .nav-btn .lbl { font-size: 10px; font-weight: 500; transition: color 0.25s; letter-spacing: 0.04em; }
+  .nav-btn.active .icon { filter: drop-shadow(0 0 6px var(--violet-glow)); color: var(--violet-light); }
+  .nav-btn.active .lbl { color: var(--violet-light); font-weight: 700; }
+  .nav-btn:not(.active) .icon, .nav-btn:not(.active) .lbl { color: var(--text-dim); }
+
+  /* FAB */
+  .fab {
+    position: fixed; bottom: 76px; right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+    border: none; color: #fff; font-size: 26px;
+    box-shadow: 0 4px 20px var(--violet-glow);
+    cursor: pointer; z-index: 99;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.25s, background 0.25s;
+  }
+  .fab.open { transform: rotate(45deg); background: linear-gradient(135deg, #6b21a8, #581c87); }
+
+  .fab-menu {
+    position: fixed; bottom: 136px; right: 20px; z-index: 98;
+    display: flex; flex-direction: column; gap: 8px;
+    animation: fadeScale 0.15s ease-out;
+  }
+  .fab-menu button {
+    padding: 10px 16px; border-radius: 12px; border: none;
+    color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .fab-overlay { position: fixed; inset: 0; z-index: 97; }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .modal {
+    background: linear-gradient(180deg, #1e1740 0%, #13102a 100%);
+    border-radius: 24px 24px 0 0; width: 100%; max-width: 480px;
+    padding: 20px; padding-bottom: var(--safe-bottom);
+    max-height: 85vh; overflow-y: auto;
+    animation: slideUp 0.3s ease-out;
+  }
+  .modal h3 { color: var(--text-primary); font-size: 18px; font-weight: 700; }
+  .modal .close-btn {
+    background: rgba(255,255,255,0.06); border: none; color: var(--text-secondary);
+    width: 32px; height: 32px; border-radius: 10px; font-size: 16px; cursor: pointer;
+  }
+  .modal label {
+    font-size: 11px; color: var(--text-secondary); font-weight: 600;
+    letter-spacing: 0.06em; margin-bottom: 6px; display: block;
+  }
+  .modal input[type="number"], .modal input[type="text"], .modal input[type="date"] {
+    width: 100%; padding: 12px 14px;
+    background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 14px; color: var(--text-primary); font-size: 14px;
+  }
+  .modal input[type="number"] { font-size: 22px; font-weight: 700; padding-left: 32px; }
+  .modal input[type="date"] { color-scheme: dark; }
+
+  .user-btn, .cat-btn {
+    border-radius: 12px; cursor: pointer; display: flex;
+    flex-direction: column; align-items: center; transition: all 0.2s;
+    background: rgba(255,255,255,0.02); border: 1.5px solid rgba(255,255,255,0.06);
+  }
+  .user-btn.sel { border-color: var(--violet); background: rgba(139,92,246,0.12); }
+  .cat-btn.sel { background: rgba(139,92,246,0.08); }
+
+  .save-btn {
+    width: 100%; padding: 14px; border-radius: 14px; border: none;
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .save-btn.active {
+    background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+    color: #fff; box-shadow: 0 4px 16px rgba(139,92,246,0.3);
+  }
+  .save-btn:not(.active) { background: #2a2545; color: var(--text-dim); cursor: default; }
+
+  /* Swipe item */
+  .swipe-container { position: relative; overflow: hidden; border-radius: 14px; margin-bottom: 6px; }
+  .swipe-delete {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 90px;
+    background: linear-gradient(90deg, #dc2626, var(--red-solid));
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .swipe-delete span { color: #fff; font-size: 13px; font-weight: 600; }
+  .swipe-content {
+    position: relative; z-index: 1; background: var(--bg-base);
+    transition: transform 0.15s ease-out;
+  }
+
+  .spinner {
+    width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--violet); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 40px auto;
+  }
+
+  .empty-state { text-align: center; padding: 40px 0; color: var(--text-dim); }
+  .empty-state .emoji { font-size: 36px; margin-bottom: 8px; }
+
+  .progress-bar {
+    height: 5px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden;
+  }
+  .progress-bar .fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  .trend-bar { border-radius: 4px 4px 0 0; transition: height 0.5s ease; }
+</style>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="text/babel">
-const { useState, useRef, useEffect } = React;
 
+<div id="app"></div>
+
+<script>
+// ============================================
+// CONFIG SUPABASE
+// ============================================
 const SUPABASE_URL = 'https://dyuwugtgcwaccvbhqvih.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5dXd1Z3RnY3dhY2N2YmhxdmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5NDA0OTksImV4cCI6MjA4MjUxNjQ5OX0.RjdPmbJYMB6qRFFS1XsFlos-pRAULE4kV_Dr-VeRBbo';
 
-const supabase = {
-  from: (table) => ({
-    select: async (columns = '*') => {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=${columns}&order=created_at.desc`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
-      const data = await res.json();
-      return { data, error: res.ok ? null : data };
-    },
-    insert: async (rows) => {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-        method: 'POST',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-        body: JSON.stringify(rows)
-      });
-      const data = await res.json();
-      return { data, error: res.ok ? null : data };
-    },
-    update: (data) => ({
-      eq: async (column, value) => {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
-          method: 'PATCH',
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-          body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        return { data: result, error: res.ok ? null : result };
-      }
-    }),
-    delete: () => ({
-      eq: async (column, value) => {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${column}=eq.${value}`, {
-          method: 'DELETE',
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-        });
-        return { error: res.ok ? null : 'Error' };
-      }
-    })
-  })
+// ============================================
+// SEGURIDAD
+// ============================================
+function escapeHtml(s) {
+  if (typeof s !== 'string') return '';
+  const m = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
+  return s.replace(/[&<>"']/g, c => m[c]);
+}
+function sanitize(s, max=200) {
+  if (typeof s !== 'string') return '';
+  return s.replace(/[<>{}]/g,'').trim().slice(0, max);
+}
+function sanitizeAmount(v) {
+  const n = parseFloat(v);
+  if (isNaN(n) || n < 0 || n > 99999999) return null;
+  return Math.round(n * 100) / 100;
+}
+
+// ============================================
+// SUPABASE FETCH
+// ============================================
+async function sb(table, method='GET', body=null, query='') {
+  const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
+  const h = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  if (method === 'POST') h['Prefer'] = 'return=representation';
+  try {
+    const r = await fetch(url, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const t = await r.text();
+    return t ? JSON.parse(t) : [];
+  } catch(e) { console.error(`SB[${table}]:`, e); return null; }
+}
+
+// ============================================
+// CONSTANTES
+// ============================================
+const CATS = [
+  {id:'food',name:'Comida',icon:'🍔',color:'#f97316'},
+  {id:'transport',name:'Transporte',icon:'🚗',color:'#06b6d4'},
+  {id:'shopping',name:'Compras',icon:'🛍️',color:'#ec4899'},
+  {id:'entertainment',name:'Ocio',icon:'🎬',color:'#8b5cf6'},
+  {id:'health',name:'Salud',icon:'💊',color:'#10b981'},
+  {id:'home',name:'Hogar',icon:'🏠',color:'#f59e0b'},
+  {id:'services',name:'Servicios',icon:'📱',color:'#3b82f6'},
+  {id:'other',name:'Otros',icon:'📦',color:'#6b7280'},
+];
+const INC_TYPES = [
+  {id:'salary',name:'Sueldo',icon:'💰',color:'#10b981'},
+  {id:'freelance',name:'Extra',icon:'💼',color:'#06b6d4'},
+  {id:'transfer',name:'Transferencia',icon:'🔄',color:'#3b82f6'},
+  {id:'other',name:'Otro',icon:'📥',color:'#6b7280'},
+];
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function getCat(id) { return CATS.find(c=>c.id===id) || {icon:'📦',name:'Otro',color:'#6b7280'}; }
+function getInc(id) { return INC_TYPES.find(t=>t.id===id) || {icon:'📥',name:'Otro',color:'#6b7280'}; }
+function fmt(n) { return '$' + (Number(n)||0).toLocaleString('es-UY',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function monthLabel(k) { const [y,m]=k.split('-'); return `${MONTHS_ES[parseInt(m)-1]} ${y}`; }
+
+function getMonthRange() {
+  const now = new Date(), arr = [];
+  for (let i=11; i>=0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    arr.push(monthKey(d));
+  }
+  return arr;
+}
+
+// ============================================
+// ESTADO
+// ============================================
+const state = {
+  users: [], currentUser: null,
+  expenses: [], incomes: [],
+  view: 'home', month: monthKey(new Date()),
+  loading: true, fabOpen: false, modal: null,
 };
 
-const categories = [
-  { id: 'food', name: 'Comida', icon: '🍔', color: '#FF6B6B' },
-  { id: 'transport', name: 'Transporte', icon: '🚗', color: '#4ECDC4' },
-  { id: 'shopping', name: 'Compras', icon: '🛍️', color: '#FFE66D' },
-  { id: 'entertainment', name: 'Ocio', icon: '🎬', color: '#A78BFA' },
-  { id: 'health', name: 'Salud', icon: '💊', color: '#34D399' },
-  { id: 'home', name: 'Hogar', icon: '🏠', color: '#F472B6' },
-  { id: 'services', name: 'Servicios', icon: '📱', color: '#60A5FA' },
-  { id: 'other', name: 'Otros', icon: '📦', color: '#9CA3AF' },
-];
-
-const incomeTypes = [
-  { id: 'salary', name: 'Sueldo', icon: '💵', color: '#10B981' },
-  { id: 'bonus', name: 'Aguinaldo', icon: '🎁', color: '#F59E0B' },
-  { id: 'freelance', name: 'Extra', icon: '💻', color: '#8B5CF6' },
-  { id: 'other', name: 'Otros', icon: '💰', color: '#6B7280' },
-];
-
-const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-function SimpleChart({ data, maxValue }) {
-  if (maxValue === 0) maxValue = 1;
-  return (
-    <div className="flex items-end justify-between gap-1 h-40">
-      {data.map((item, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-          <div className="w-full flex gap-0.5 items-end h-32">
-            <div className="flex-1 bg-emerald-500 rounded-t transition-all" style={{ height: `${(item.Ingresos / maxValue) * 100}%` }} title={`Ingresos: $${item.Ingresos}`} />
-            <div className="flex-1 bg-red-500 rounded-t transition-all" style={{ height: `${(item.Gastos / maxValue) * 100}%` }} title={`Gastos: $${item.Gastos}`} />
-          </div>
-          <span className="text-xs text-slate-400">{item.name}</span>
-        </div>
-      ))}
-    </div>
-  );
+// ============================================
+// RENDER ENGINE
+// ============================================
+function render() {
+  const app = document.getElementById('app');
+  app.innerHTML = renderHeader() +
+    (state.loading ? '<div class="spinner"></div>' : renderView()) +
+    renderFab() + renderModal() + renderNav();
+  bindEvents();
 }
 
-function App() {
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [expenses, setExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('home');
-  const [modal, setModal] = useState(null);
-  const [receiptImage, setReceiptImage] = useState(null);
-  const [viewingReceipt, setViewingReceipt] = useState(null);
-  const [newExpense, setNewExpense] = useState({ amount: '', description: '', category: 'food', date: new Date().toISOString().split('T')[0] });
-  const [newIncome, setNewIncome] = useState({ amount: '', description: '', type: 'salary', date: new Date().toISOString().split('T')[0] });
-  const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
-  const [syncing, setSyncing] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [showSetPassword, setShowSetPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [selectedUserForLogin, setSelectedUserForLogin] = useState(null);
-  const fileInputRef = useRef(null);
+function renderHeader() {
+  const u = state.currentUser;
+  return `<div style="padding:16px 20px 10px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:20px;font-weight:800;letter-spacing:-0.02em">Control de Gastos</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${u ? u.avatar+' '+escapeHtml(u.name) : ''}</div>
+    </div>
+    <div style="display:flex;gap:4px">
+      ${state.users.map(u => `<button onclick="switchUser('${u.id}')" style="width:34px;height:34px;border-radius:10px;
+        background:${state.currentUser?.id===u.id?'rgba(139,92,246,0.2)':'rgba(255,255,255,0.04)'};
+        border:${state.currentUser?.id===u.id?'1.5px solid rgba(139,92,246,0.4)':'1.5px solid transparent'};
+        font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s">${u.avatar}</button>`).join('')}
+    </div>
+  </div>`;
+}
 
-  useEffect(() => { loadData(); }, []);
+function renderMonthNav() {
+  const months = getMonthRange();
+  const idx = months.indexOf(state.month);
+  return `<div class="month-nav">
+    <button ${idx<=0?'disabled':''} onclick="changeMonth(-1)">‹</button>
+    <span class="label">${monthLabel(state.month)}</span>
+    <button ${idx>=months.length-1?'disabled':''} onclick="changeMonth(1)">›</button>
+  </div>`;
+}
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [usersRes, expensesRes, incomesRes] = await Promise.all([
-        supabase.from('users').select('*'),
-        supabase.from('expenses').select('*'),
-        supabase.from('incomes').select('*')
-      ]);
-      if (usersRes.data) setUsers(usersRes.data);
-      if (expensesRes.data) setExpenses(expensesRes.data.map(e => ({
-        ...e, userName: usersRes.data?.find(u => u.id === e.user_id)?.name || '',
-        userAvatar: usersRes.data?.find(u => u.id === e.user_id)?.avatar || '👤',
-        userId: e.user_id, createdAt: e.created_at, receipt: e.receipt_url
-      })));
-      if (incomesRes.data) setIncomes(incomesRes.data.map(i => ({
-        ...i, userName: usersRes.data?.find(u => u.id === i.user_id)?.name || '',
-        userAvatar: usersRes.data?.find(u => u.id === i.user_id)?.avatar || '👤',
-        userId: i.user_id, createdAt: i.created_at
-      })));
-    } catch (err) { console.error('Error:', err); }
-    setLoading(false);
-  };
+function renderView() {
+  switch(state.view) {
+    case 'home': return renderHome();
+    case 'expenses': return renderList('expense');
+    case 'income': return renderList('income');
+    case 'stats': return renderStats();
+    default: return renderHome();
+  }
+}
 
-  const handleUserSelect = (user) => {
-    if (user.password) {
-      setSelectedUserForLogin(user);
-      setPasswordInput('');
-      setPasswordError('');
-    } else {
-      setSelectedUserForLogin(user);
-      setShowSetPassword(true);
-      setNewPassword('');
-      setConfirmPassword('');
-    }
-  };
+// ============================================
+// HOME VIEW
+// ============================================
+function renderHome() {
+  const mExp = state.expenses.filter(e => e.date?.startsWith(state.month));
+  const mInc = state.incomes.filter(i => i.date?.startsWith(state.month));
+  const tExp = mExp.reduce((s,e) => s+Number(e.amount), 0);
+  const tInc = mInc.reduce((s,i) => s+Number(i.amount), 0);
+  const bal = tInc - tExp;
 
-  const handleLogin = () => {
-    if (passwordInput === selectedUserForLogin.password) {
-      setCurrentUser(selectedUserForLogin);
-      setSelectedUserForLogin(null);
-      setPasswordInput('');
-      setPasswordError('');
-    } else {
-      setPasswordError('Contraseña incorrecta');
-    }
-  };
+  const byCat = {};
+  mExp.forEach(e => { byCat[e.category] = (byCat[e.category]||0)+Number(e.amount); });
+  const topCats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,4);
 
-  const handleSetPassword = async () => {
-    if (newPassword.length < 4) {
-      setPasswordError('Mínimo 4 caracteres');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('Las contraseñas no coinciden');
-      return;
-    }
-    setSyncing(true);
-    const { error } = await supabase.from('users').update({ password: newPassword }).eq('id', selectedUserForLogin.id);
-    if (!error) {
-      const updatedUser = { ...selectedUserForLogin, password: newPassword };
-      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
-      setCurrentUser(updatedUser);
-      setShowSetPassword(false);
-      setSelectedUserForLogin(null);
-    }
-    setSyncing(false);
-  };
+  const byUser = {};
+  mExp.forEach(e => { byUser[e.user_id] = (byUser[e.user_id]||0)+Number(e.amount); });
 
-  const handleImageCapture = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setReceiptImage(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
+  // Últimos movimientos
+  const recent = [...mExp.map(e=>({...e,_type:'exp'})), ...mInc.map(i=>({...i,_type:'inc'}))]
+    .sort((a,b) => new Date(b.created_at||b.date) - new Date(a.created_at||a.date)).slice(0,5);
 
-  const addExpense = async () => {
-    if (!newExpense.amount || !currentUser) return;
-    setSyncing(true);
-    const { data, error } = await supabase.from('expenses').insert([{
-      user_id: currentUser.id, amount: parseFloat(newExpense.amount), description: newExpense.description,
-      category: newExpense.category, date: newExpense.date, receipt_url: receiptImage
-    }]);
-    if (!error && data) {
-      setExpenses([{ ...data[0], userName: currentUser.name, userAvatar: currentUser.avatar, userId: currentUser.id, createdAt: data[0].created_at, receipt: data[0].receipt_url }, ...expenses]);
-    }
-    setNewExpense({ amount: '', description: '', category: 'food', date: new Date().toISOString().split('T')[0] });
-    setReceiptImage(null); setModal(null); setSyncing(false);
-  };
+  return `<div style="padding:12px 16px 100px">
+    ${renderMonthNav()}
 
-  const addIncome = async () => {
-    if (!newIncome.amount || !currentUser) return;
-    setSyncing(true);
-    const { data, error } = await supabase.from('incomes').insert([{
-      user_id: currentUser.id, amount: parseFloat(newIncome.amount), description: newIncome.description,
-      type: newIncome.type, date: newIncome.date
-    }]);
-    if (!error && data) {
-      setIncomes([{ ...data[0], userName: currentUser.name, userAvatar: currentUser.avatar, userId: currentUser.id, createdAt: data[0].created_at }, ...incomes]);
-    }
-    setNewIncome({ amount: '', description: '', type: 'salary', date: new Date().toISOString().split('T')[0] });
-    setModal(null); setSyncing(false);
-  };
+    <!-- Balance -->
+    <div class="card" style="margin-top:12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(109,40,217,0.08));border-color:rgba(139,92,246,0.15);padding:20px">
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.08em;margin-bottom:4px">BALANCE DEL MES</div>
+        <div style="font-size:34px;font-weight:800;color:${bal>=0?'#a5f3ab':'var(--red)'};letter-spacing:-0.02em">${fmt(bal)}</div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div style="flex:1;background:var(--green-bg);border-radius:12px;padding:10px 12px;text-align:center">
+          <div style="font-size:10px;color:var(--green);font-weight:600;letter-spacing:0.06em">INGRESOS</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green);margin-top:2px">${fmt(tInc)}</div>
+        </div>
+        <div style="flex:1;background:var(--orange-bg);border-radius:12px;padding:10px 12px;text-align:center">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;letter-spacing:0.06em">GASTOS</div>
+          <div style="font-size:18px;font-weight:700;color:var(--orange);margin-top:2px">${fmt(tExp)}</div>
+        </div>
+      </div>
+    </div>
 
-  const deleteExpense = async (id) => { setSyncing(true); await supabase.from('expenses').delete().eq('id', id); setExpenses(expenses.filter(e => e.id !== id)); setSyncing(false); };
-  const deleteIncome = async (id) => { setSyncing(true); await supabase.from('incomes').delete().eq('id', id); setIncomes(incomes.filter(i => i.id !== id)); setSyncing(false); };
+    <!-- Por persona -->
+    ${state.users.length ? `<div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:10px">GASTOS POR PERSONA</div>
+      <div style="display:flex;gap:10px">
+        ${state.users.map(u => `<div style="flex:1;text-align:center">
+          <span style="font-size:26px">${u.avatar}</span>
+          <div style="font-size:12px;color:var(--violet-light);font-weight:600;margin-top:2px">${escapeHtml(u.name)}</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-top:1px">${fmt(byUser[u.id]||0)}</div>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
 
-  const filteredExpenses = expenses.filter(e => e.date?.startsWith(filterMonth));
-  const filteredIncomes = incomes.filter(i => i.date?.startsWith(filterMonth));
-  const totalExpensesMonth = filteredExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-  const totalIncomesMonth = filteredIncomes.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-  
-  // Balance acumulativo histórico (todos los ingresos - todos los gastos)
-  const totalExpensesAll = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-  const totalIncomesAll = incomes.reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-  const balanceTotal = totalIncomesAll - totalExpensesAll;
+    <!-- Top categorías -->
+    ${topCats.length ? `<div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:10px">TOP CATEGORÍAS</div>
+      ${topCats.map(([id,amt]) => {
+        const c=getCat(id); const pct=tExp>0?amt/tExp*100:0;
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:13px;color:var(--violet-light)">${c.icon} ${c.name}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--text-primary)">${fmt(amt)}</span>
+          </div>
+          <div class="progress-bar"><div class="fill" style="width:${pct}%;background:${c.color}"></div></div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
 
-  const getUserStats = (userId) => {
-    // Stats del mes
-    const uExpMonth = filteredExpenses.filter(e => e.userId === userId || e.user_id === userId).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const uIncMonth = filteredIncomes.filter(i => i.userId === userId || i.user_id === userId).reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-    // Balance acumulativo histórico por usuario
-    const uExpAll = expenses.filter(e => e.userId === userId || e.user_id === userId).reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const uIncAll = incomes.filter(i => i.userId === userId || i.user_id === userId).reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-    return { expenses: uExpMonth, incomes: uIncMonth, balanceMonth: uIncMonth - uExpMonth, balance: uIncAll - uExpAll };
-  };
+    <!-- Últimos movimientos -->
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:10px">ÚLTIMOS MOVIMIENTOS</div>
+      ${recent.length ? recent.map((item,i) => {
+        const isInc = item._type==='inc';
+        const cat = isInc ? getInc(item.type) : getCat(item.category);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<recent.length-1?'border-bottom:1px solid rgba(255,255,255,0.03)':''}">
+          <span style="font-size:20px">${cat.icon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:#d4d0ec;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.description||cat.name)}</div>
+            <div style="font-size:10px;color:var(--text-muted)">${item.date}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:${isInc?'var(--green)':'var(--orange)'}">${isInc?'+':'-'}${fmt(item.amount)}</div>
+        </div>`;
+      }).join('') : '<div style="text-align:center;padding:16px 0;color:var(--text-dim);font-size:13px">No hay movimientos este mes</div>'}
+    </div>
+  </div>`;
+}
 
-  const getChartData = () => months.map((month, i) => {
-    const ms = `${filterYear}-${String(i + 1).padStart(2, '0')}`;
-    return { name: month, Ingresos: incomes.filter(x => x.date?.startsWith(ms)).reduce((s, x) => s + parseFloat(x.amount || 0), 0), Gastos: expenses.filter(x => x.date?.startsWith(ms)).reduce((s, x) => s + parseFloat(x.amount || 0), 0) };
+// ============================================
+// LIST VIEW (Gastos / Ingresos)
+// ============================================
+function renderList(type) {
+  const isExp = type==='expense';
+  const items = isExp ? state.expenses : state.incomes;
+  const filtered = items.filter(e => e.date?.startsWith(state.month));
+  const total = filtered.reduce((s,e) => s+Number(e.amount), 0);
+
+  const grouped = {};
+  filtered.forEach(e => {
+    const d = e.date||'Sin fecha';
+    if(!grouped[d]) grouped[d]=[];
+    grouped[d].push(e);
+  });
+  const dates = Object.keys(grouped).sort((a,b)=>b.localeCompare(a));
+
+  return `<div style="padding:12px 16px 100px">
+    ${renderMonthNav()}
+
+    <div class="card" style="margin-top:12px;text-align:center;
+      background:${isExp?'linear-gradient(135deg,rgba(249,115,22,0.1),rgba(239,68,68,0.05))':'linear-gradient(135deg,rgba(16,185,129,0.1),rgba(52,211,153,0.05))'};
+      border-color:${isExp?'rgba(249,115,22,0.15)':'rgba(16,185,129,0.15)'}">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.08em">TOTAL ${isExp?'GASTOS':'INGRESOS'} DEL MES</div>
+      <div style="font-size:30px;font-weight:800;color:${isExp?'var(--orange)':'var(--green)'};margin-top:4px">${fmt(total)}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${filtered.length} registros</div>
+    </div>
+
+    ${dates.map(date => {
+      const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'}).toUpperCase();
+      return `<div style="margin-top:14px">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:0.06em;margin-bottom:6px;padding-left:4px">${dayLabel}</div>
+        ${grouped[date].map(item => {
+          const cat = isExp ? getCat(item.category) : getInc(item.type);
+          const user = state.users.find(u=>u.id===item.user_id);
+          return `<div class="swipe-container" data-id="${item.id}" data-type="${type}">
+            <div class="swipe-delete" onclick="deleteItem('${item.id}','${type}')"><span>Eliminar</span></div>
+            <div class="swipe-content">
+              <div class="card" style="border-radius:14px;padding:12px 14px;margin:0">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:40px;height:40px;border-radius:12px;background:${cat.color}15;display:flex;align-items:center;justify-content:center;font-size:20px">${cat.icon}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.description||cat.name)}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:1px">${user?user.avatar+' '+escapeHtml(user.name):''} · ${cat.name}</div>
+                  </div>
+                  <div style="font-size:16px;font-weight:700;color:${isExp?'var(--orange)':'var(--green)'}">${fmt(item.amount)}</div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+
+    ${filtered.length===0?`<div class="empty-state"><div class="emoji">${isExp?'💸':'💰'}</div><div style="font-size:14px">No hay ${isExp?'gastos':'ingresos'} este mes</div></div>`:''}
+  </div>`;
+}
+
+// ============================================
+// STATS VIEW
+// ============================================
+function renderStats() {
+  const mExp = state.expenses.filter(e=>e.date?.startsWith(state.month));
+  const mInc = state.incomes.filter(i=>i.date?.startsWith(state.month));
+  const tExp = mExp.reduce((s,e)=>s+Number(e.amount),0);
+  const tInc = mInc.reduce((s,i)=>s+Number(i.amount),0);
+  const savePct = tInc>0 ? Math.round((tInc-tExp)/tInc*100) : 0;
+
+  // Tendencia 6 meses
+  const now=new Date(), trend=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const mk=monthKey(d);
+    trend.push({
+      label: MONTHS_ES[d.getMonth()].slice(0,3),
+      exp: state.expenses.filter(e=>e.date?.startsWith(mk)).reduce((s,e)=>s+Number(e.amount),0),
+      inc: state.incomes.filter(e=>e.date?.startsWith(mk)).reduce((s,e)=>s+Number(e.amount),0),
+    });
+  }
+  const maxT = Math.max(...trend.map(t=>Math.max(t.exp,t.inc)),1);
+
+  // Por categoría
+  const byCat={};
+  mExp.forEach(e=>{byCat[e.category]=(byCat[e.category]||0)+Number(e.amount);});
+  const sortedCats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+
+  // Por persona
+  const byUser={};
+  mExp.forEach(e=>{byUser[e.user_id]=(byUser[e.user_id]||0)+Number(e.amount);});
+
+  return `<div style="padding:12px 16px 100px">
+    ${renderMonthNav()}
+
+    <!-- Resumen -->
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:12px">RESUMEN MENSUAL</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="text-align:center"><div style="font-size:10px;color:var(--green);font-weight:600">Ingresos</div><div style="font-size:16px;font-weight:700;color:var(--green)">${fmt(tInc)}</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--orange);font-weight:600">Gastos</div><div style="font-size:16px;font-weight:700;color:var(--orange)">${fmt(tExp)}</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--violet-light);font-weight:600">Ahorro</div><div style="font-size:16px;font-weight:700;color:${(tInc-tExp)>=0?'#a5f3ab':'var(--red)'}">${savePct}%</div></div>
+      </div>
+    </div>
+
+    <!-- Tendencia -->
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:14px">TENDENCIA 6 MESES</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;height:100px">
+        ${trend.map(t=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="width:100%;display:flex;gap:2px;align-items:flex-end;justify-content:center;height:80px">
+            <div class="trend-bar" style="width:40%;background:linear-gradient(to top,rgba(16,185,129,0.3),rgba(16,185,129,0.6));height:${(t.inc/maxT)*100}%;min-height:${t.inc>0?4:0}px"></div>
+            <div class="trend-bar" style="width:40%;background:linear-gradient(to top,rgba(249,115,22,0.3),rgba(249,115,22,0.6));height:${(t.exp/maxT)*100}%;min-height:${t.exp>0?4:0}px"></div>
+          </div>
+          <span style="font-size:9px;color:var(--text-muted);font-weight:600">${t.label}</span>
+        </div>`).join('')}
+      </div>
+      <div style="display:flex;justify-content:center;gap:16px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:2px;background:rgba(16,185,129,0.6)"></div><span style="font-size:10px;color:var(--text-muted)">Ingresos</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;border-radius:2px;background:rgba(249,115,22,0.6)"></div><span style="font-size:10px;color:var(--text-muted)">Gastos</span></div>
+      </div>
+    </div>
+
+    <!-- Categorías -->
+    ${sortedCats.length?`<div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:10px">DESGLOSE POR CATEGORÍA</div>
+      ${sortedCats.map(([id,amt])=>{
+        const c=getCat(id); const pct=tExp>0?Math.round(amt/tExp*100):0;
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="width:36px;height:36px;border-radius:10px;background:${c.color}15;display:flex;align-items:center;justify-content:center;font-size:18px">${c.icon}</div>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--violet-light);font-weight:600">${c.name}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text-primary)">${fmt(amt)} <span style="color:var(--text-muted);font-weight:500">(${pct}%)</span></span>
+            </div>
+            <div class="progress-bar"><div class="fill" style="width:${pct}%;background:${c.color}"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+
+    <!-- Por persona -->
+    ${state.users.length&&Object.keys(byUser).length?`<div class="card" style="margin-top:12px">
+      <div style="font-size:11px;color:var(--text-secondary);font-weight:600;letter-spacing:0.06em;margin-bottom:10px">GASTOS POR PERSONA</div>
+      ${state.users.map(u=>{
+        const amt=byUser[u.id]||0; const pct=tExp>0?Math.round(amt/tExp*100):0;
+        return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:24px">${u.avatar}</span>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px;color:var(--violet-light);font-weight:600">${escapeHtml(u.name)}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text-primary)">${fmt(amt)}</span>
+            </div>
+            <div class="progress-bar"><div class="fill" style="width:${pct}%;background:${u.color}"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+  </div>`;
+}
+
+// ============================================
+// FAB & MODAL
+// ============================================
+function renderFab() {
+  let html = '';
+  if (state.fabOpen) {
+    html += `<div class="fab-overlay" onclick="toggleFab()"></div>
+    <div class="fab-menu">
+      <button onclick="openModal('income')" style="background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 12px rgba(16,185,129,0.3)">💰 Ingreso</button>
+      <button onclick="openModal('expense')" style="background:linear-gradient(135deg,#ea580c,#f97316);box-shadow:0 4px 12px rgba(249,115,22,0.3)">💸 Gasto</button>
+    </div>`;
+  }
+  html += `<button class="fab ${state.fabOpen?'open':''}" onclick="toggleFab()">+</button>`;
+  return html;
+}
+
+function renderModal() {
+  if (!state.modal) return '';
+  const isExp = state.modal==='expense';
+  const items = isExp ? CATS : INC_TYPES;
+  return `<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h3>${isExp?'Nuevo Gasto':'Nuevo Ingreso'}</h3>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+
+      <label>QUIÉN</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        ${state.users.map(u=>`<button class="user-btn ${state.currentUser?.id===u.id?'sel':''}" onclick="switchUser('${u.id}')" style="flex:1;padding:10px 8px;gap:4px">
+          <span style="font-size:22px">${u.avatar}</span>
+          <span style="font-size:11px;color:${state.currentUser?.id===u.id?'var(--violet-light)':'var(--text-muted)'};font-weight:600">${escapeHtml(u.name)}</span>
+        </button>`).join('')}
+      </div>
+
+      <label>MONTO</label>
+      <div style="position:relative;margin-bottom:16px">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:18px;font-weight:700">$</span>
+        <input type="number" id="modal-amount" inputmode="decimal" placeholder="0" autocomplete="off">
+      </div>
+
+      <label>DESCRIPCIÓN</label>
+      <input type="text" id="modal-desc" placeholder="¿En qué?" maxlength="200" autocomplete="off" style="margin-bottom:16px">
+
+      <label>${isExp?'CATEGORÍA':'TIPO'}</label>
+      <div id="modal-cats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+        ${items.map((c,i)=>`<button class="cat-btn ${i===0?'sel':''}" data-cat="${c.id}" onclick="selectCat('${c.id}')"
+          style="padding:10px 4px;gap:3px;${i===0?`border-color:${c.color};background:${c.color}15`:''}" data-color="${c.color}">
+          <span style="font-size:20px">${c.icon}</span>
+          <span style="font-size:9px;color:var(--text-secondary);font-weight:600">${c.name}</span>
+        </button>`).join('')}
+      </div>
+
+      <label>FECHA</label>
+      <input type="date" id="modal-date" value="${new Date().toISOString().split('T')[0]}" style="margin-bottom:20px">
+
+      <button class="save-btn" id="modal-save" onclick="saveItem()">Guardar</button>
+    </div>
+  </div>`;
+}
+
+function renderNav() {
+  const items = [
+    {id:'home',icon:'⌂',label:'Inicio'},
+    {id:'expenses',icon:'↗',label:'Gastos'},
+    {id:'income',icon:'↙',label:'Ingresos'},
+    {id:'stats',icon:'◔',label:'Stats'},
+  ];
+  return `<nav class="bottom-nav">
+    ${items.map(it=>`<button class="nav-btn ${state.view===it.id?'active':''}" onclick="navigate('${it.id}')">
+      <span class="icon">${it.icon}</span><span class="lbl">${it.label}</span>
+    </button>`).join('')}
+  </nav>`;
+}
+
+// ============================================
+// ACCIONES
+// ============================================
+function navigate(v) { state.view = v; render(); window.scrollTo(0,0); }
+function switchUser(id) { state.currentUser = state.users.find(u=>u.id===id)||state.currentUser; render(); }
+function toggleFab() { state.fabOpen = !state.fabOpen; render(); }
+function openModal(type) { state.modal = type; state.fabOpen = false; render(); }
+function closeModal() { state.modal = null; render(); }
+
+function changeMonth(dir) {
+  const months = getMonthRange();
+  const idx = months.indexOf(state.month);
+  const newIdx = idx + dir;
+  if (newIdx >= 0 && newIdx < months.length) {
+    state.month = months[newIdx];
+    render();
+  }
+}
+
+let selectedCat = null;
+function selectCat(id) {
+  selectedCat = id;
+  document.querySelectorAll('#modal-cats .cat-btn').forEach(btn => {
+    const isActive = btn.dataset.cat === id;
+    btn.classList.toggle('sel', isActive);
+    btn.style.borderColor = isActive ? btn.dataset.color : 'rgba(255,255,255,0.06)';
+    btn.style.background = isActive ? btn.dataset.color + '15' : 'rgba(255,255,255,0.02)';
+  });
+}
+
+async function saveItem() {
+  const amountEl = document.getElementById('modal-amount');
+  const descEl = document.getElementById('modal-desc');
+  const dateEl = document.getElementById('modal-date');
+  if (!amountEl) return;
+
+  const amount = sanitizeAmount(amountEl.value);
+  if (!amount || !state.currentUser) return;
+
+  const desc = sanitize(descEl?.value || '');
+  const date = dateEl?.value || new Date().toISOString().split('T')[0];
+  const isExp = state.modal === 'expense';
+  const cat = selectedCat || (isExp ? 'food' : 'salary');
+
+  const saveBtn = document.getElementById('modal-save');
+  if (saveBtn) { saveBtn.textContent = 'Guardando...'; saveBtn.style.opacity = '0.6'; }
+
+  if (isExp) {
+    const res = await sb('expenses','POST',{ user_id:state.currentUser.id, amount, description:desc, category:cat, date });
+    if (res?.[0]) state.expenses.unshift(res[0]);
+  } else {
+    const res = await sb('incomes','POST',{ user_id:state.currentUser.id, amount, description:desc, type:cat, date });
+    if (res?.[0]) state.incomes.unshift(res[0]);
+  }
+
+  selectedCat = null;
+  closeModal();
+}
+
+async function deleteItem(id, type) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  if (type === 'expense') {
+    await sb('expenses','DELETE',null,`?id=eq.${id}`);
+    state.expenses = state.expenses.filter(e=>e.id!==id);
+  } else {
+    await sb('incomes','DELETE',null,`?id=eq.${id}`);
+    state.incomes = state.incomes.filter(i=>i.id!==id);
+  }
+  render();
+}
+
+// ============================================
+// SWIPE
+// ============================================
+function bindEvents() {
+  document.querySelectorAll('.swipe-content').forEach(el => {
+    let startX = 0, currentX = 0, swiping = false;
+    el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; swiping = true; });
+    el.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      const diff = Math.min(0, e.touches[0].clientX - startX);
+      currentX = diff;
+      el.style.transform = `translateX(${Math.max(diff, -90)}px)`;
+    });
+    el.addEventListener('touchend', () => {
+      swiping = false;
+      el.style.transform = currentX < -50 ? 'translateX(-90px)' : 'translateX(0)';
+      currentX = 0;
+    });
   });
 
-  const chartData = getChartData();
-  const maxChartValue = Math.max(...chartData.map(d => Math.max(d.Ingresos, d.Gastos)), 1);
-
-  if (loading) return (<div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center"><div className="text-6xl mb-4 animate-bounce">💰</div><p className="text-slate-400">Cargando...</p></div>);
-
-  if (selectedUserForLogin && !showSetPassword) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6">
-      <button onClick={() => setSelectedUserForLogin(null)} className="absolute top-4 left-4 text-slate-400 text-lg">← Volver</button>
-      <div className="text-5xl mb-4">{selectedUserForLogin.avatar}</div>
-      <h2 className="text-xl font-bold mb-6">{selectedUserForLogin.name}</h2>
-      <div className="w-full max-w-xs space-y-4">
-        <input type="password" placeholder="Ingresá tu contraseña" value={passwordInput} onChange={e => { setPasswordInput(e.target.value); setPasswordError(''); }} className="w-full bg-slate-800 rounded-xl p-4 outline-none border border-slate-700 text-white text-center text-lg" autoFocus />
-        {passwordError && <p className="text-red-400 text-sm text-center">{passwordError}</p>}
-        <button onClick={handleLogin} className="w-full py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-blue-600 active:scale-95">Entrar</button>
-      </div>
-    </div>
-  );
-
-  if (showSetPassword) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6">
-      <button onClick={() => { setShowSetPassword(false); setSelectedUserForLogin(null); }} className="absolute top-4 left-4 text-slate-400 text-lg">← Volver</button>
-      <div className="text-5xl mb-4">{selectedUserForLogin.avatar}</div>
-      <h2 className="text-xl font-bold mb-2">{selectedUserForLogin.name}</h2>
-      <p className="text-slate-400 text-sm mb-6 text-center">Creá una contraseña para proteger tu cuenta</p>
-      <div className="w-full max-w-xs space-y-4">
-        <input type="password" placeholder="Nueva contraseña" value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(''); }} className="w-full bg-slate-800 rounded-xl p-4 outline-none border border-slate-700 text-white" autoFocus />
-        <input type="password" placeholder="Confirmar contraseña" value={confirmPassword} onChange={e => { setConfirmPassword(e.target.value); setPasswordError(''); }} className="w-full bg-slate-800 rounded-xl p-4 outline-none border border-slate-700 text-white" />
-        {passwordError && <p className="text-red-400 text-sm text-center">{passwordError}</p>}
-        <button onClick={handleSetPassword} disabled={syncing} className="w-full py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 active:scale-95 disabled:opacity-50">{syncing ? 'Guardando...' : 'Crear contraseña'}</button>
-      </div>
-    </div>
-  );
-
-  if (!currentUser) return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-6">
-      <div className="text-6xl mb-4">💰</div>
-      <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent mb-2">GastosApp</h1>
-      <p className="text-slate-400 mb-8">Finanzas en pareja</p>
-      <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
-        {users.map(u => (
-          <button key={u.id} onClick={() => handleUserSelect(u)} className="flex flex-col items-center gap-3 p-6 rounded-2xl border-2 active:scale-95 transition-transform" style={{ borderColor: u.color, background: `linear-gradient(135deg, ${u.color}20, transparent)` }}>
-            <span className="text-5xl">{u.avatar}</span>
-            <span className="font-semibold">{u.name}</span>
-            {u.password && <span className="text-xs text-slate-400">🔒</span>}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs text-emerald-500 mt-8">✓ Conectado</p>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-28">
-      {syncing && <div className="fixed top-0 left-0 right-0 bg-blue-500 text-center py-1 text-xs z-50">Sincronizando...</div>}
-      <header className="p-5 flex items-center gap-3">
-        <button onClick={() => setCurrentUser(null)} className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl active:scale-95" style={{ background: currentUser.color }}>{currentUser.avatar}</button>
-        <div className="flex-1"><p className="font-semibold">Hola, {currentUser.name}</p><p className="text-xs text-slate-400">{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
-        <button onClick={loadData} className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center text-lg active:scale-95">🔄</button>
-      </header>
-      <main className="px-5">
-        <input type="month" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setFilterYear(e.target.value.split('-')[0]); }} className="mb-4 bg-slate-700/50 border-0 rounded-lg px-3 py-2 text-sm text-white" />
-        <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 rounded-3xl p-5 mb-4 border border-slate-600/30">
-          <p className="text-sm text-slate-400">Balance total acumulado</p>
-          <p className={`text-3xl font-bold ${balanceTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${balanceTotal.toLocaleString('es-ES')}</p>
-          <p className="text-xs text-slate-500 mt-1">Dinero disponible en cuenta</p>
-          <div className="flex gap-3 mt-4">
-            <div className="flex-1 bg-emerald-500/20 rounded-xl p-3"><p className="text-xs text-emerald-400">💵 Ingresos mes</p><p className="text-lg font-bold text-emerald-400">+${totalIncomesMonth.toLocaleString('es-ES')}</p></div>
-            <div className="flex-1 bg-red-500/20 rounded-xl p-3"><p className="text-xs text-red-400">💸 Gastos mes</p><p className="text-lg font-bold text-red-400">-${totalExpensesMonth.toLocaleString('es-ES')}</p></div>
-          </div>
-        </div>
-        <div className="flex gap-3 mb-6">
-          {users.map(u => { const s = getUserStats(u.id); return (
-            <div key={u.id} className="flex-1 rounded-2xl p-4 border" style={{ background: `linear-gradient(135deg, ${u.color}20, transparent)`, borderColor: `${u.color}40` }}>
-              <div className="flex items-center gap-2 mb-2"><span className="text-2xl">{u.avatar}</span><span className="font-medium text-sm">{u.name}</span></div>
-              <p className={`text-xl font-bold ${s.balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>${s.balance.toLocaleString('es-ES')}</p>
-              <p className="text-xs text-slate-500">Total acumulado</p>
-              <div className="mt-2 pt-2 border-t border-slate-700">
-                <p className="text-xs text-slate-400">Este mes:</p>
-                <p className="text-xs text-emerald-400">+${s.incomes.toLocaleString('es-ES')}</p>
-                <p className="text-xs text-red-400">-${s.expenses.toLocaleString('es-ES')}</p>
-              </div>
-            </div>
-          ); })}
-        </div>
-        <div className="flex gap-2 bg-slate-800/50 p-1.5 rounded-2xl mb-6">
-          {[{ id: 'home', icon: '🏠' }, { id: 'chart', icon: '📊' }, { id: 'incomes', icon: '💵' }, { id: 'expenses', icon: '💸' }].map(t => (
-            <button key={t.id} onClick={() => setView(t.id)} className={`flex-1 py-2.5 rounded-xl text-lg ${view === t.id ? 'bg-slate-700' : ''}`}>{t.icon}</button>
-          ))}
-        </div>
-        {view === 'home' && (
-          <div className="space-y-3">
-            <h3 className="font-semibold">Últimos movimientos</h3>
-            {filteredExpenses.length === 0 && filteredIncomes.length === 0 ? <p className="text-center text-slate-400 py-8">No hay movimientos</p> :
-              [...filteredIncomes.map(i => ({ ...i, isIncome: true })), ...filteredExpenses.map(e => ({ ...e, isIncome: false }))].sort((a, b) => new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at)).slice(0, 10).map(item => {
-                const cat = item.isIncome ? incomeTypes.find(t => t.id === item.type) : categories.find(c => c.id === item.category);
-                return (<div key={item.id} className="flex items-center gap-3 bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${cat?.color}30` }}>{cat?.icon}</div>
-                  <div className="flex-1 min-w-0"><p className="font-medium truncate">{item.description || cat?.name}</p><p className="text-xs text-slate-400">{item.userAvatar} {item.userName} • {item.date}</p></div>
-                  {!item.isIncome && item.receipt && <button onClick={() => setViewingReceipt(item.receipt)} className="text-lg">🧾</button>}
-                  <p className={`font-semibold ${item.isIncome ? 'text-emerald-400' : 'text-red-400'}`}>{item.isIncome ? '+' : '-'}${parseFloat(item.amount).toLocaleString('es-ES')}</p>
-                </div>);
-              })}
-          </div>
-        )}
-        {view === 'chart' && (
-          <div className="space-y-4">
-            <h3 className="font-semibold">Resumen {filterYear}</h3>
-            <div className="bg-slate-800/40 rounded-2xl p-4 border border-slate-700/50">
-              <div className="flex gap-4 mb-3 justify-center"><div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded"/><span className="text-xs text-slate-400">Ingresos</span></div><div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded"/><span className="text-xs text-slate-400">Gastos</span></div></div>
-              <SimpleChart data={chartData} maxValue={maxChartValue} />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-emerald-500/20 rounded-xl p-3 text-center"><p className="text-xs text-emerald-400">Ingresos</p><p className="text-base font-bold text-emerald-400">${incomes.filter(i => i.date?.startsWith(filterYear)).reduce((s, i) => s + parseFloat(i.amount || 0), 0).toLocaleString('es-ES')}</p></div>
-              <div className="bg-red-500/20 rounded-xl p-3 text-center"><p className="text-xs text-red-400">Gastos</p><p className="text-base font-bold text-red-400">${expenses.filter(e => e.date?.startsWith(filterYear)).reduce((s, e) => s + parseFloat(e.amount || 0), 0).toLocaleString('es-ES')}</p></div>
-              <div className="bg-purple-500/20 rounded-xl p-3 text-center"><p className="text-xs text-purple-400">Balance</p><p className="text-base font-bold text-purple-400">${(incomes.filter(i => i.date?.startsWith(filterYear)).reduce((s, i) => s + parseFloat(i.amount || 0), 0) - expenses.filter(e => e.date?.startsWith(filterYear)).reduce((s, e) => s + parseFloat(e.amount || 0), 0)).toLocaleString('es-ES')}</p></div>
-            </div>
-          </div>
-        )}
-        {view === 'incomes' && (
-          <div className="space-y-3">
-            <h3 className="font-semibold">Ingresos del mes</h3>
-            {filteredIncomes.length === 0 ? <p className="text-center text-slate-400 py-8">No hay ingresos</p> : filteredIncomes.map(i => {
-              const t = incomeTypes.find(x => x.id === i.type);
-              return (<div key={i.id} className="flex items-center gap-3 bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${t?.color}30` }}>{t?.icon}</div>
-                <div className="flex-1"><p className="font-medium">{i.description || t?.name}</p><p className="text-xs text-slate-400">{i.userAvatar} {i.userName} • {i.date}</p></div>
-                <p className="font-semibold text-emerald-400">+${parseFloat(i.amount).toLocaleString('es-ES')}</p>
-                <button onClick={() => deleteIncome(i.id)} className="text-red-400/60 active:scale-90">🗑️</button>
-              </div>);
-            })}
-          </div>
-        )}
-        {view === 'expenses' && (
-          <div className="space-y-3">
-            <h3 className="font-semibold">Gastos del mes</h3>
-            {filteredExpenses.length === 0 ? <p className="text-center text-slate-400 py-8">No hay gastos</p> : filteredExpenses.map(e => {
-              const c = categories.find(x => x.id === e.category);
-              return (<div key={e.id} className="flex items-center gap-3 bg-slate-800/40 rounded-xl p-4 border border-slate-700/50">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${c?.color}30` }}>{c?.icon}</div>
-                <div className="flex-1"><p className="font-medium">{e.description || c?.name}</p><p className="text-xs text-slate-400">{e.userAvatar} {e.userName} • {e.date}</p></div>
-                {e.receipt && <button onClick={() => setViewingReceipt(e.receipt)} className="text-lg">🧾</button>}
-                <p className="font-semibold text-red-400">-${parseFloat(e.amount).toLocaleString('es-ES')}</p>
-                <button onClick={() => deleteExpense(e.id)} className="text-red-400/60 active:scale-90">🗑️</button>
-              </div>);
-            })}
-          </div>
-        )}
-      </main>
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-40">
-        <button onClick={() => setModal('income')} className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-2xl shadow-lg shadow-emerald-500/30 active:scale-90">💵</button>
-        <button onClick={() => setModal('expense')} className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-2xl shadow-lg shadow-red-500/30 active:scale-90">−</button>
-      </div>
-      {modal && (
-        <div className="fixed inset-0 bg-black/80 flex items-end justify-center z-50" onClick={() => { setModal(null); setReceiptImage(null); }}>
-          <div className="bg-slate-900 rounded-t-3xl w-full max-h-[90vh] overflow-auto p-6" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className={`text-xl font-bold ${modal === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>{modal === 'income' ? '💵 Nuevo ingreso' : '💸 Nuevo gasto'}</h2>
-              <button onClick={() => { setModal(null); setReceiptImage(null); }} className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div><label className="text-sm text-slate-400 block mb-1">Monto</label>
-                <div className={`flex items-center gap-2 rounded-xl p-4 border ${modal === 'income' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                  <span className={`text-2xl font-bold ${modal === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>$</span>
-                  <input type="number" inputMode="decimal" placeholder="0" value={modal === 'income' ? newIncome.amount : newExpense.amount} onChange={e => modal === 'income' ? setNewIncome({ ...newIncome, amount: e.target.value }) : setNewExpense({ ...newExpense, amount: e.target.value })} className="flex-1 bg-transparent text-2xl font-bold outline-none text-white" />
-                </div>
-              </div>
-              <div><label className="text-sm text-slate-400 block mb-1">Descripción</label><input type="text" placeholder={modal === 'income' ? 'Ej: Sueldo' : 'Ej: Supermercado'} value={modal === 'income' ? newIncome.description : newExpense.description} onChange={e => modal === 'income' ? setNewIncome({ ...newIncome, description: e.target.value }) : setNewExpense({ ...newExpense, description: e.target.value })} className="w-full bg-slate-800 rounded-xl p-4 outline-none border border-slate-700 text-white" /></div>
-              <div><label className="text-sm text-slate-400 block mb-1">Fecha</label><input type="date" value={modal === 'income' ? newIncome.date : newExpense.date} onChange={e => modal === 'income' ? setNewIncome({ ...newIncome, date: e.target.value }) : setNewExpense({ ...newExpense, date: e.target.value })} className="w-full bg-slate-800 rounded-xl p-4 outline-none border border-slate-700 text-white" /></div>
-              {modal === 'expense' && (<div><label className="text-sm text-slate-400 block mb-2">📷 Foto del recibo</label><input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageCapture} className="hidden" />
-                {receiptImage ? (<div className="relative"><img src={receiptImage} alt="Recibo" className="w-full h-40 object-cover rounded-xl" /><button onClick={() => setReceiptImage(null)} className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">✕</button></div>
-                ) : (<button onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-slate-600 rounded-xl p-6 flex flex-col items-center gap-2 active:border-slate-500"><span className="text-4xl">📸</span><span className="text-slate-400 text-sm">Toca para sacar foto</span></button>)}
-              </div>)}
-              <div><label className="text-sm text-slate-400 block mb-2">{modal === 'income' ? 'Tipo' : 'Categoría'}</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(modal === 'income' ? incomeTypes : categories).map(item => {
-                    const selected = modal === 'income' ? newIncome.type === item.id : newExpense.category === item.id;
-                    return (<button key={item.id} onClick={() => modal === 'income' ? setNewIncome({ ...newIncome, type: item.id }) : setNewExpense({ ...newExpense, category: item.id })} className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 active:scale-95 ${selected ? '' : 'border-slate-700 bg-slate-800/50'}`} style={selected ? { borderColor: item.color, background: `${item.color}30` } : {}}><span className="text-xl">{item.icon}</span><span className="text-xs">{item.name}</span></button>);
-                  })}
-                </div>
-              </div>
-              <button onClick={modal === 'income' ? addIncome : addExpense} disabled={(modal === 'income' ? !newIncome.amount : !newExpense.amount) || syncing} className={`w-full py-4 rounded-xl font-semibold text-white active:scale-98 ${modal === 'income' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 'bg-gradient-to-r from-red-500 to-red-600'} disabled:opacity-50`}>{syncing ? 'Guardando...' : `Guardar ${modal === 'income' ? 'ingreso' : 'gasto'}`}</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {viewingReceipt && (<div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4" onClick={() => setViewingReceipt(null)}><div className="relative max-w-full max-h-full"><img src={viewingReceipt} alt="Recibo" className="max-w-full max-h-[80vh] rounded-xl object-contain" /><button onClick={() => setViewingReceipt(null)} className="absolute top-2 right-2 w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-white text-xl">✕</button></div></div>)}
-    </div>
-  );
+  // Validar botón guardar en modal
+  const amtInput = document.getElementById('modal-amount');
+  if (amtInput) {
+    const updateBtn = () => {
+      const btn = document.getElementById('modal-save');
+      if (!btn) return;
+      const valid = sanitizeAmount(amtInput.value) !== null;
+      btn.classList.toggle('active', valid);
+    };
+    amtInput.addEventListener('input', updateBtn);
+    updateBtn();
+  }
 }
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
+
+// ============================================
+// INIT
+// ============================================
+async function init() {
+  render();
+  const [usersData, expData, incData] = await Promise.all([
+    sb('users','GET',null,'?select=*&order=created_at.asc'),
+    sb('expenses','GET',null,'?select=*&order=created_at.desc'),
+    sb('incomes','GET',null,'?select=*&order=created_at.desc'),
+  ]);
+  if (usersData) state.users = usersData;
+  if (expData) state.expenses = expData;
+  if (incData) state.incomes = incData;
+  if (state.users.length && !state.currentUser) state.currentUser = state.users[0];
+  state.loading = false;
+  render();
+}
+
+init();
+</script>
 </body>
 </html>
