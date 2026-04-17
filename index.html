@@ -138,14 +138,63 @@
 const SB_URL='https://dyuwugtgcwaccvbhqvih.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR5dXd1Z3RnY3dhY2N2YmhxdmloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5NDA0OTksImV4cCI6MjA4MjUxNjQ5OX0.RjdPmbJYMB6qRFFS1XsFlos-pRAULE4kV_Dr-VeRBbo';
 
+// Usuarios hardcodeados (solo nombre/avatar para pantalla de login, no hay datos sensibles acá)
+const LOGIN_USERS=[
+  {name:'Ana',avatar:'👩',color:'#FF6B6B',email:'dra.analaurabarrios@gmail.com'},
+  {name:'Sebastian',avatar:'👨',color:'#4ECDC4',email:'sebaf80@gmail.com'}
+];
+
 function esc(s){if(typeof s!=='string')return'';const m={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};return s.replace(/[&<>"']/g,c=>m[c]);}
 function san(s,x=200){if(typeof s!=='string')return'';return s.replace(/[<>{}]/g,'').trim().slice(0,x);}
 function sanA(v){const n=parseFloat(v);if(isNaN(n)||n<0||n>99999999)return null;return Math.round(n*100)/100;}
 
+// ============================================
+// AUTH (Supabase Auth) - Sesión en localStorage
+// ============================================
+const SESSION_KEY='gastosapp_session_v2';
+
+function saveSession(s){try{localStorage.setItem(SESSION_KEY,JSON.stringify({access_token:s.access_token,refresh_token:s.refresh_token,expires_at:s.expires_at,user_id:s.user?.id,email:s.user?.email}));}catch(e){console.error('saveSession:',e);}}
+function loadSession(){try{const s=localStorage.getItem(SESSION_KEY);return s?JSON.parse(s):null;}catch{return null;}}
+function clearSession(){try{localStorage.removeItem(SESSION_KEY);}catch{}}
+
+async function authLogin(email,password){
+  const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const d=await r.json();
+  if(!r.ok)throw new Error(d.error_description||d.msg||d.message||'Error de login');
+  saveSession(d);return d;
+}
+async function authRefresh(){
+  const s=loadSession();if(!s?.refresh_token)throw new Error('No session');
+  const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+  const d=await r.json();
+  if(!r.ok){clearSession();throw new Error('Refresh failed');}
+  saveSession(d);return d;
+}
+async function authLogout(){
+  const s=loadSession();
+  if(s?.access_token){try{await fetch(`${SB_URL}/auth/v1/logout`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${s.access_token}`}});}catch{}}
+  clearSession();
+}
+async function getAccessToken(){
+  const s=loadSession();if(!s)return null;
+  // Si expira en menos de 60s, refrescar
+  if(s.expires_at && s.expires_at*1000 < Date.now()+60000){
+    try{const ns=await authRefresh();return ns.access_token;}catch{return null;}
+  }
+  return s.access_token;
+}
+
 async function sbf(t,m='GET',b=null,q=''){
-  const u=`${SB_URL}/rest/v1/${t}${q}`,h={'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json'};
+  const token=await getAccessToken();
+  const u=`${SB_URL}/rest/v1/${t}${q}`;
+  const h={'apikey':SB_KEY,'Authorization':`Bearer ${token||SB_KEY}`,'Content-Type':'application/json'};
   if(m==='POST'||m==='PATCH')h['Prefer']='return=representation';
-  try{const r=await fetch(u,{method:m,headers:h,body:b?JSON.stringify(b):undefined});if(!r.ok)throw new Error(`HTTP ${r.status}`);const x=await r.text();return x?JSON.parse(x):[];}catch(e){console.error(`SB[${t}]:`,e);return null;}
+  try{
+    const r=await fetch(u,{method:m,headers:h,body:b?JSON.stringify(b):undefined});
+    if(r.status===401){clearSession();S.session=null;S.cu=null;S.screen='login';R();return null;}
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const x=await r.text();return x?JSON.parse(x):[];
+  }catch(e){console.error(`SB[${t}]:`,e);return null;}
 }
 
 // ============================================
@@ -213,44 +262,66 @@ function mR(){const now=new Date(),a=[];for(let i=23;i>=0;i--){const d=new Date(
 function dl(d){return new Date(d+'T12:00:00').toLocaleDateString('es-UY',{weekday:'short',day:'numeric',month:'short'}).toUpperCase();}
 function accBal(upTo){let b=0;for(const m of mR()){if(m>=upTo)break;b+=S.incomes.filter(i=>i.date?.startsWith(m)).reduce((s,i)=>s+Number(i.amount),0);b-=S.expenses.filter(e=>e.date?.startsWith(m)).reduce((s,e)=>s+Number(e.amount),0);}return b;}
 
-const S={users:[],cu:null,expenses:[],incomes:[],v:'home',m:mkM(new Date()),ld:true,fo:false,md:null,ed:null,screen:'loading',selUser:null,pwInput:'',newPw:'',confPw:'',pwErr:''};
+const S={users:[],cu:null,expenses:[],incomes:[],v:'home',m:mkM(new Date()),ld:true,fo:false,md:null,ed:null,screen:'loading',session:null,loginEmail:'',loginPw:'',loginErr:''};
 
 function R(){
   const app=document.getElementById('app');
   if(S.screen==='loading'){app.innerHTML='<div class="login-bg"><div class="spinner"></div></div>';return;}
-  if(S.screen==='select'){app.innerHTML=rLogin();return;}
+  if(S.screen==='login'){app.innerHTML=rLogin();return;}
   if(S.screen==='password'){app.innerHTML=rPwScreen();return;}
-  if(S.screen==='setpw'){app.innerHTML=rSetPwScreen();return;}
   let h=`<div class="app-shell">${rSB()}<div class="main-content">${rHM()}${S.ld?'<div class="spinner"></div>':rV()}${rFab()}${rMdl()}</div></div>${rBN()}`;
   if(viewingReceipt){h+=`<div class="rv-bg" onclick="if(event.target===this)closeReceipt()"><img src="${viewingReceipt}" alt="Recibo"><button class="rv-close" onclick="closeReceipt()">✕</button></div>`;}
   app.innerHTML=h;
   bEv();
 }
 
-// LOGIN
+// LOGIN (Supabase Auth)
 function rLogin(){
   return`<div class="login-bg"><div class="login-box">
     <div class="logo">💰</div><h1>GastosApp</h1><p class="sub">Gestiona tus finanzas en pareja</p>
     <div class="login-card"><h2>¿Quién eres?</h2>
-      <div class="user-grid">${S.users.map(u=>`<div class="user-card" onclick="selUsr('${u.id}')" style="border-color:${u.color}30">
+      <div class="user-grid">${LOGIN_USERS.map(u=>`<div class="user-card" onclick="selUsr('${u.email}')" style="border-color:${u.color}30">
         <span class="av">${u.avatar}</span><span class="nm">${esc(u.name)}</span></div>`).join('')}</div>
     </div></div></div>`;
 }
-function rPwScreen(){const u=S.selUser;return`<div class="pw-screen"><button class="back" onclick="backToSel()">← Volver</button>
-  <div class="av">${u.avatar}</div><h2>${esc(u.name)}</h2><p class="hint">Ingresá tu contraseña</p>
-  <div class="fields"><input type="password" id="pw-i" placeholder="Contraseña" autocomplete="off" value="${esc(S.pwInput)}" oninput="S.pwInput=this.value;S.pwErr=''"><div class="err">${S.pwErr}</div>
-  <button class="btn" style="background:linear-gradient(135deg,#3b82f6,#2563eb)" onclick="doLogin()">Entrar</button></div></div>`;}
-function rSetPwScreen(){const u=S.selUser;return`<div class="pw-screen"><button class="back" onclick="backToSel()">← Volver</button>
-  <div class="av">${u.avatar}</div><h2>${esc(u.name)}</h2><p class="hint">Creá una contraseña para proteger tu cuenta</p>
-  <div class="fields"><input type="password" id="npw" placeholder="Nueva contraseña" autocomplete="new-password" oninput="S.newPw=this.value;S.pwErr=''">
-  <input type="password" placeholder="Confirmar contraseña" autocomplete="new-password" oninput="S.confPw=this.value;S.pwErr=''">
-  <div class="err">${S.pwErr}</div><button class="btn" style="background:linear-gradient(135deg,#10b981,#059669)" onclick="doSetPw()">Crear contraseña</button></div></div>`;}
-function selUsr(id){const u=S.users.find(x=>x.id===id);if(!u)return;S.selUser=u;S.pwInput='';S.newPw='';S.confPw='';S.pwErr='';S.screen=u.password?'password':'setpw';R();setTimeout(()=>{const inp=document.getElementById('pw-i')||document.getElementById('npw');if(inp)inp.focus();},100);}
-function backToSel(){S.screen='select';S.selUser=null;R();}
-function doLogin(){if(!S.selUser)return;if(S.pwInput===S.selUser.password){S.cu=S.selUser;S.screen='app';S.pwInput='';loadData();}else{S.pwErr='Contraseña incorrecta';R();}}
-async function doSetPw(){if(!S.selUser)return;if(S.newPw.length<4){S.pwErr='Mínimo 4 caracteres';R();return;}if(S.newPw!==S.confPw){S.pwErr='Las contraseñas no coinciden';R();return;}
-  const r=await sbf('users','PATCH',{password:S.newPw},`?id=eq.${S.selUser.id}`);if(r){S.selUser.password=S.newPw;S.users=S.users.map(u=>u.id===S.selUser.id?{...u,password:S.newPw}:u);S.cu=S.selUser;S.screen='app';loadData();}else{S.pwErr='Error al guardar';R();}}
-function doLogout(){S.cu=null;S.screen='select';S.selUser=null;S.v='home';S.fo=false;S.md=null;S.ed=null;pendingReceipt=null;viewingReceipt=null;R();}
+function rPwScreen(){
+  const u=LOGIN_USERS.find(x=>x.email===S.loginEmail);
+  if(!u)return rLogin();
+  return`<div class="pw-screen"><button class="back" onclick="backToSel()">← Volver</button>
+    <div class="av">${u.avatar}</div><h2>${esc(u.name)}</h2><p class="hint">Ingresá tu contraseña</p>
+    <div class="fields">
+      <input type="password" id="pw-i" placeholder="Contraseña" autocomplete="current-password" oninput="S.loginPw=this.value;S.loginErr='';updErr()" onkeydown="if(event.key==='Enter')doLogin()">
+      <div class="err" id="pw-err">${esc(S.loginErr)}</div>
+      <button class="btn" id="lb" style="background:linear-gradient(135deg,#3b82f6,#2563eb)" onclick="doLogin()">Entrar</button>
+    </div></div>`;
+}
+function updErr(){const e=document.getElementById('pw-err');if(e)e.textContent=S.loginErr;}
+function selUsr(email){S.loginEmail=email;S.loginPw='';S.loginErr='';S.screen='password';R();setTimeout(()=>{const i=document.getElementById('pw-i');if(i)i.focus();},100);}
+function backToSel(){S.screen='login';S.loginEmail='';S.loginPw='';S.loginErr='';R();}
+
+async function doLogin(){
+  if(!S.loginEmail||!S.loginPw){S.loginErr='Ingresá la contraseña';updErr();return;}
+  const btn=document.getElementById('lb');
+  if(btn){btn.textContent='Entrando...';btn.disabled=true;btn.style.opacity='0.6';}
+  try{
+    await authLogin(S.loginEmail,S.loginPw);
+    S.session=loadSession();S.loginPw='';S.loginErr='';S.screen='app';
+    await loadData();
+  }catch(e){
+    const msg=String(e.message||'');
+    S.loginErr=msg.toLowerCase().includes('invalid')||msg.toLowerCase().includes('credentials')?'Contraseña incorrecta':'Error al entrar. Revisá tu conexión.';
+    if(btn){btn.textContent='Entrar';btn.disabled=false;btn.style.opacity='1';}
+    updErr();
+  }
+}
+
+async function doLogout(){
+  try{await authLogout();}catch{}
+  S.session=null;S.cu=null;S.screen='login';S.loginEmail='';S.loginPw='';S.loginErr='';
+  S.v='home';S.fo=false;S.md=null;S.ed=null;pendingReceipt=null;viewingReceipt=null;
+  S.users=[];S.expenses=[];S.incomes=[];
+  R();
+}
 
 // APP VIEWS
 function rSB(){const nv=[{id:'home',ic:'⌂',l:'Inicio'},{id:'expenses',ic:'↗',l:'Gastos'},{id:'income',ic:'↙',l:'Ingresos'},{id:'stats',ic:'◔',l:'Estadísticas'}];
@@ -456,13 +527,31 @@ function bEv(){
   if(ai){const ub=()=>{const b=document.getElementById('ms');if(!b)return;b.classList.toggle('ac',sanA(ai.value)!==null);};ai.addEventListener('input',ub);ub();}
 }
 
-async function loadData(){S.ld=true;R();
-  const[ed,id]=await Promise.all([sbf('expenses','GET',null,'?select=*&order=created_at.desc'),sbf('incomes','GET',null,'?select=*&order=created_at.desc')]);
-  if(ed)S.expenses=ed;if(id)S.incomes=id;S.ld=false;R();}
+async function loadData(){
+  S.ld=true;R();
+  const[ud,ed,id]=await Promise.all([
+    sbf('users','GET',null,'?select=*&order=name.asc'),
+    sbf('expenses','GET',null,'?select=*&order=created_at.desc'),
+    sbf('incomes','GET',null,'?select=*&order=created_at.desc')
+  ]);
+  if(ud)S.users=ud;
+  if(ed)S.expenses=ed;
+  if(id)S.incomes=id;
+  if(S.session?.user_id)S.cu=S.users.find(u=>u.id===S.session.user_id)||null;
+  S.ld=false;R();
+}
 
-async function init(){R();
-  const ud=await sbf('users','GET',null,'?select=*&order=created_at.asc');
-  if(ud)S.users=ud;S.screen='select';R();}
+async function init(){
+  R();
+  const s=loadSession();
+  if(s){
+    const valid=s.expires_at && s.expires_at*1000 > Date.now()+60000;
+    if(valid){S.session=s;S.screen='app';await loadData();return;}
+    // Intentar refrescar
+    try{await authRefresh();S.session=loadSession();S.screen='app';await loadData();return;}catch{}
+  }
+  S.screen='login';R();
+}
 init();
 </script>
 </body>
