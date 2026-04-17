@@ -1,2 +1,0 @@
-# gastosapp
-App de gastos
