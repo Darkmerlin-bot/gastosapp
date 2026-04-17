@@ -108,7 +108,27 @@
   .mob-logout{background:none;border:none;color:var(--ts);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:all 0.2s}
   .mob-logout:hover{color:var(--rd);background:rgba(239,68,68,0.1)}
 
-  /* SPLIT */
+  /* SEARCH & FILTERS */
+  .search-row{display:flex;gap:8px;margin-bottom:10px;margin-top:8px}
+  .search-input{flex:1;padding:11px 14px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--tp);font-size:14px;outline:none;transition:border-color 0.2s}
+  .search-input:focus{border-color:rgba(139,92,246,0.4)}
+  .fbtn{position:relative;width:44px;padding:0;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;color:var(--ts);font-size:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center}
+  .fbtn:hover{color:var(--tp);background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3)}
+  .fbtn.on{color:var(--vl);background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.35)}
+  .fbtn .dot{position:absolute;top:-4px;right:-4px;background:var(--v);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+  .fpanel{background:var(--bg-card);border:1px solid var(--brd);border-radius:14px;padding:12px 14px;margin-bottom:10px;animation:fadeIn 0.15s}
+  .fgroup{margin-bottom:10px}
+  .fgroup:last-child{margin-bottom:0}
+  .fgroup label{font-size:10px;color:var(--ts);font-weight:600;letter-spacing:0.08em;margin-bottom:6px;display:block}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:6px 10px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:var(--tm);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s}
+  .chip:hover{color:var(--tp);border-color:rgba(139,92,246,0.3)}
+  .chip.sel{color:#fff;background:rgba(139,92,246,0.2);border-color:var(--v)}
+  .clear-btn{margin-top:8px;width:100%;padding:8px;border-radius:10px;border:1px solid rgba(239,68,68,0.2);background:rgba(239,68,68,0.05);color:var(--rd);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s}
+  .clear-btn:hover{background:rgba(239,68,68,0.1)}
+  .sr-info{font-size:11px;color:var(--tm);margin:4px 4px 8px;display:flex;align-items:center;gap:6px}
+
+
   .share-badge{display:inline-flex;align-items:center;justify-content:center;font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(139,92,246,0.15);color:var(--vl);font-weight:600;margin-left:4px;flex-shrink:0}
   .toggle-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.08);border-radius:14px;cursor:pointer;transition:all 0.2s;margin-bottom:16px;user-select:none}
   .toggle-row:hover{background:rgba(255,255,255,0.055)}
@@ -290,7 +310,7 @@ function calcSharedBal(){
   return diff>0?{debtor:u2,creditor:u1,amount:diff/2,u1,u2,p1,p2}:{debtor:u1,creditor:u2,amount:-diff/2,u1,u2,p1,p2};
 }
 
-const S={users:[],cu:null,expenses:[],incomes:[],v:'home',m:mkM(new Date()),ld:true,fo:false,md:null,ed:null,screen:'loading',session:null,loginEmail:'',loginPw:'',loginErr:''};
+const S={users:[],cu:null,expenses:[],incomes:[],v:'home',m:mkM(new Date()),ld:true,fo:false,md:null,ed:null,screen:'loading',session:null,loginEmail:'',loginPw:'',loginErr:'',sq:'',fu:null,fc:null,fp:false};
 
 function R(){
   const app=document.getElementById('app');
@@ -416,13 +436,50 @@ function rHome(){
 }
 
 function rList(type){
-  const isE=type==='expense',items=isE?S.expenses:S.incomes;
-  const fl=items.filter(e=>e.date?.startsWith(S.m)),tot=fl.reduce((s,e)=>s+Number(e.amount),0);
+  const isE=type==='expense',items=isE?S.expenses:S.incomes,cats=isE?CATS:INCT;
+  const hasF=!!(S.sq||S.fu||S.fc);
+  const nF=(S.fu?1:0)+(S.fc?1:0);
+  let fl;
+  if(hasF){
+    const q=S.sq.trim().toLowerCase();
+    fl=items.filter(it=>{
+      if(S.fu&&it.user_id!==S.fu)return false;
+      const cf=isE?it.category:it.type;
+      if(S.fc&&cf!==S.fc)return false;
+      if(q){
+        const ct=isE?gc(it.category):gi(it.type);
+        const hay=((it.description||'').toLowerCase().includes(q))||ct.n.toLowerCase().includes(q);
+        if(!hay)return false;
+      }
+      return true;
+    });
+  }else{
+    fl=items.filter(e=>e.date?.startsWith(S.m));
+  }
+  const tot=fl.reduce((s,e)=>s+Number(e.amount),0);
   const gr={};fl.forEach(e=>{const d=e.date||'';if(!gr[d])gr[d]=[];gr[d].push(e);});
   const ds=Object.keys(gr).sort((a,b)=>b.localeCompare(a));
-  return`<div class="ca">${rMN()}
+  return`<div class="ca">
+    <div class="search-row">
+      <input type="text" class="search-input" placeholder="🔍 Buscar por descripción o categoría" value="${esc(S.sq)}" oninput="S.sq=this.value;R();setTimeout(()=>{const i=document.querySelector('.search-input');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},0)">
+      <button class="fbtn ${S.fp||nF?'on':''}" onclick="togFp()" title="Filtros">⚙️${nF?`<span class="dot">${nF}</span>`:''}</button>
+    </div>
+    ${S.fp?`<div class="fpanel">
+      <div class="fgroup"><label>PERSONA</label>
+        <div class="chip-row">
+          <button class="chip ${!S.fu?'sel':''}" onclick="stFu(null)">Todos</button>
+          ${S.users.map(u=>`<button class="chip ${S.fu===u.id?'sel':''}" onclick="stFu('${u.id}')">${u.avatar} ${esc(u.name)}</button>`).join('')}
+        </div></div>
+      <div class="fgroup"><label>${isE?'CATEGORÍA':'TIPO'}</label>
+        <div class="chip-row">
+          <button class="chip ${!S.fc?'sel':''}" onclick="stFc(null)">Todos</button>
+          ${cats.map(c=>`<button class="chip ${S.fc===c.id?'sel':''}" onclick="stFc('${c.id}')">${c.i} ${c.n}</button>`).join('')}
+        </div></div>
+      ${hasF?`<button class="clear-btn" onclick="clrF()">✕ Limpiar búsqueda y filtros</button>`:''}
+    </div>`:''}
+    ${hasF?`<div class="sr-info">📊 ${fl.length} resultado${fl.length===1?'':'s'} en todos los meses</div>`:rMN()}
     <div class="card" style="margin-top:12px;text-align:center;background:${isE?'linear-gradient(135deg,rgba(249,115,22,0.1),rgba(239,68,68,0.05))':'linear-gradient(135deg,rgba(16,185,129,0.1),rgba(52,211,153,0.05))'};border-color:${isE?'rgba(249,115,22,0.15)':'rgba(16,185,129,0.15)'}">
-      <div style="font-size:11px;color:var(--ts);font-weight:600;letter-spacing:0.08em">TOTAL ${isE?'GASTOS':'INGRESOS'} DEL MES</div>
+      <div style="font-size:11px;color:var(--ts);font-weight:600;letter-spacing:0.08em">${hasF?'TOTAL FILTRADO':'TOTAL '+(isE?'GASTOS':'INGRESOS')+' DEL MES'}</div>
       <div style="font-size:30px;font-weight:800;color:${isE?'var(--or)':'var(--gr)'};margin-top:4px">${fmt(tot)}</div>
       <div style="font-size:11px;color:var(--tm);margin-top:2px">${fl.length} registros</div></div>
     ${ds.map(date=>`<div style="margin-top:14px">
@@ -445,7 +502,7 @@ function rList(type){
               <button class="pdb" onclick="del('${it.id}','${type}')" title="Eliminar">🗑</button>
             </div></div></div></div>`;}).join('')}
     </div>`).join('')}
-    ${fl.length===0?`<div class="empty"><div class="em">${isE?'💸':'💰'}</div><div style="font-size:14px">No hay ${isE?'gastos':'ingresos'} este mes</div></div>`:''}
+    ${fl.length===0?`<div class="empty"><div class="em">${hasF?'🔍':(isE?'💸':'💰')}</div><div style="font-size:14px">${hasF?'Sin resultados':'No hay '+(isE?'gastos':'ingresos')+' este mes'}</div></div>`:''}
   </div>`;
 }
 
@@ -536,7 +593,17 @@ function rBN(){const its=[{id:'home',ic:'⌂',l:'Inicio'},{id:'expenses',ic:'↗
   return`<nav class="bottom-nav">${its.map(it=>`<button class="nb ${S.v===it.id?'a':''}" onclick="nav('${it.id}')"><span class="ic">${it.ic}</span><span class="lb">${it.l}</span></button>`).join('')}</nav>`;}
 
 // ACCIONES
-function nav(v){S.v=v;S.ed=null;R();window.scrollTo(0,0);}
+function nav(v){
+  // Al cambiar entre gastos/ingresos se resetea el filtro de categoría porque las categorías son distintas
+  if((v==='expenses'&&S.v==='income')||(v==='income'&&S.v==='expenses'))S.fc=null;
+  // Al salir de listas, cerrar el panel de filtros
+  if(v!=='expenses'&&v!=='income')S.fp=false;
+  S.v=v;S.ed=null;R();window.scrollTo(0,0);
+}
+function togFp(){S.fp=!S.fp;R();}
+function stFu(id){S.fu=id;R();}
+function stFc(id){S.fc=id;R();}
+function clrF(){S.sq='';S.fu=null;S.fc=null;R();}
 function tgF(){S.fo=!S.fo;R();}
 function oM(t){S.md=t;S.fo=false;pendingReceipt=null;pendingShared=false;R();}
 function cM(){S.md=null;pendingReceipt=null;pendingShared=false;R();}
